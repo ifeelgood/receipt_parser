@@ -87,4 +87,4 @@ if __name__ == '__main__':
     new_items.append(existing_items)
     existing_items = pd.concat(new_items, join='outer', sort=False)
     existing_items.drop_duplicates(inplace=True)
-    existing_items.to_csv('receipt_items.csv', header=True, encoding='utf-8')
+    existing_items.to_csv('receipt_items.csv', header=True, encoding='utf-8', float_format='%.3f')
