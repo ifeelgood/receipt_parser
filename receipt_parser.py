@@ -58,6 +58,7 @@ def parse_receipt(qr_code, config):
     new_items.set_index(['date', 'receipt_sum'], inplace=True)
     return new_items
 
+
 if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read("settings.ini")
