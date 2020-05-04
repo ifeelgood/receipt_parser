@@ -53,11 +53,10 @@ def parse_receipt(qr_code, config):
     new_items = pd.DataFrame(products['document']['receipt']['items'])
     new_items['price'] = new_items['price'] // 100
     new_items['sum'] = new_items['sum'] // 100
-    new_items['date'] = datetime.strftime(qr_code['dtm'], "%d.%m.%Y %H:%M").replace(" 0", " ")
+    new_items['date'] = datetime.strftime(qr_code['dtm'], config["OUTPUT"]["date_format"])
     new_items['receipt_sum'] = int(qr_code['sum']) // 100
     new_items.set_index(['date', 'receipt_sum'], inplace=True)
     return new_items
-
 
 if __name__ == '__main__':
     config = configparser.ConfigParser()
@@ -72,7 +71,7 @@ if __name__ == '__main__':
 
     for qr_code in qr_codes['code']:
         qr_code_parsed = parse_qr_code(qr_code)
-        dtm = datetime.strftime(qr_code_parsed['dtm'], "%d.%m.%Y %H:%M").replace(" 0", " ")
+        dtm = datetime.strftime(qr_code_parsed['dtm'], config["OUTPUT"]["date_format"])
         sum = int(qr_code_parsed['sum']) // 100
         if not (dtm, sum) in existing_items.index:
             parsed_items = parse_receipt(qr_code_parsed, config)
