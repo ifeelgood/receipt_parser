@@ -5,6 +5,8 @@ import pandas as pd
 from datetime import datetime
 from collections import Iterable
 import time
+import os.path
+import fileinput
 
 
 def parse_qr_code(qr_code_string):
@@ -40,6 +42,7 @@ def parse_receipt(qr_code, config):
               % (check.status_code, qr_code['fn'], qr_code['fd'], qr_code['fpd'], dtm_str, qr_code['sum']))
         return check.status_code
 
+    time.sleep(float(config["FNS"]["api_call_delay_in_seconds"]))
     receipt_details = requests.get(
         'https://proverkacheka.nalog.ru:9999/v1/inns/*/kkts/*/fss/'+qr_code['fn']+'/tickets/'+qr_code['fd']+'?fiscalSign='+qr_code['fpd']+'&sendToEmail=no',
          headers=headers, auth=(config["FNS"]["phone_number"], config["FNS"]["password"]))
@@ -50,11 +53,12 @@ def parse_receipt(qr_code, config):
         return receipt_details.status_code
 
     products = receipt_details.json()
-    new_items = pd.DataFrame(products['document']['receipt']['items'])
+    new_items = pd.DataFrame(products['document']['receipt']['items'], columns=["name", "price", "quantity", "sum"])
     new_items['price'] = new_items['price'] // 100
     new_items['sum'] = new_items['sum'] // 100
     new_items['date'] = datetime.strftime(qr_code['dtm'], config["OUTPUT"]["date_format"])
     new_items['receipt_sum'] = int(qr_code['sum']) // 100
+    new_items['category'] = ''
     new_items.set_index(['date', 'receipt_sum'], inplace=True)
     return new_items
 
@@ -62,29 +66,30 @@ def parse_receipt(qr_code, config):
 if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read("settings.ini")
-    new_items = list()
+    parsed_data_frames = list()
+    existing_items = None
 
-    qr_codes = pd.read_csv('qr_codes.csv', encoding='utf-8')
+    if os.path.exists(config["OUTPUT"]["filename"]):
+        existing_items = pd.read_csv(config["OUTPUT"]["filename"], encoding='utf-8')
+        existing_items.set_index(['date', 'receipt_sum'], inplace=True)
+        existing_items.sort_index(inplace=True)
+        parsed_data_frames.append(existing_items)
 
-    existing_items = pd.read_csv('receipt_items.csv', encoding='utf-8')
-    existing_items.set_index(['date', 'receipt_sum'], inplace=True)
-    existing_items.sort_index(inplace=True)
-
-    for qr_code in qr_codes['code']:
+    for qr_code in fileinput.input():
         qr_code_parsed = parse_qr_code(qr_code)
         dtm = datetime.strftime(qr_code_parsed['dtm'], config["OUTPUT"]["date_format"])
         sum = int(qr_code_parsed['sum']) // 100
-        if not (dtm, sum) in existing_items.index:
+        if (existing_items is None) or (not (dtm, sum) in existing_items.index):
             parsed_items = parse_receipt(qr_code_parsed, config)
             if not isinstance(parsed_items, Iterable):
                 while not isinstance(parsed_items, Iterable) and parsed_items == 202:
                     time.sleep(float(config["FNS"]["api_call_delay_in_seconds"]))
                     parsed_items = parse_receipt(qr_code_parsed, config)
             if isinstance(parsed_items, Iterable):
-                new_items.append(parsed_items)
+                parsed_data_frames.append(parsed_items)
             time.sleep(float(config["FNS"]["api_call_delay_in_seconds"]))
 
-    new_items.append(existing_items)
-    existing_items = pd.concat(new_items, join='outer', sort=False)
+    existing_items = pd.concat(parsed_data_frames, join='outer', sort=False)
     existing_items.drop_duplicates(inplace=True)
-    existing_items.to_csv('receipt_items.csv', header=True, encoding='utf-8', float_format='%.3f')
+    existing_items.to_csv(config["OUTPUT"]["filename"], header=True, encoding='utf-8', float_format='%.3f',
+                          columns=["name", "category", "price", "quantity", "sum"])
