@@ -67,18 +67,18 @@ if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read("settings.ini")
     parsed_data_frames = list()
-    existing_items = None
+    existing_items_index = None
 
     if os.path.exists(config["OUTPUT"]["filename"]):
         existing_items = pd.read_csv(config["OUTPUT"]["filename"], encoding='utf-8', index_col=['date', 'receipt_sum'])
-        existing_items.sort_index(inplace=True)
         parsed_data_frames.append(existing_items)
+        existing_items_index = existing_items.sort_index().index
 
     for qr_code in fileinput.input():
         qr_code_parsed = parse_qr_code(qr_code)
         dtm = datetime.strftime(qr_code_parsed['dtm'], config["OUTPUT"]["date_format"])
         sum = int(qr_code_parsed['sum']) // 100
-        if (existing_items is None) or (not (dtm, sum) in existing_items.index):
+        if (existing_items_index is None) or (not (dtm, sum) in existing_items_index):
             parsed_items = parse_receipt(qr_code_parsed, config)
             if not isinstance(parsed_items, Iterable):
                 while not isinstance(parsed_items, Iterable) and parsed_items == 202:
