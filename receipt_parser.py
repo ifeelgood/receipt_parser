@@ -70,8 +70,7 @@ if __name__ == '__main__':
     existing_items = None
 
     if os.path.exists(config["OUTPUT"]["filename"]):
-        existing_items = pd.read_csv(config["OUTPUT"]["filename"], encoding='utf-8')
-        existing_items.set_index(['date', 'receipt_sum'], inplace=True)
+        existing_items = pd.read_csv(config["OUTPUT"]["filename"], encoding='utf-8', index_col=['date', 'receipt_sum'])
         existing_items.sort_index(inplace=True)
         parsed_data_frames.append(existing_items)
 
@@ -90,6 +89,5 @@ if __name__ == '__main__':
             time.sleep(float(config["FNS"]["api_call_delay_in_seconds"]))
 
     existing_items = pd.concat(parsed_data_frames, join='outer', sort=False)
-    existing_items.drop_duplicates(inplace=True)
     existing_items.to_csv(config["OUTPUT"]["filename"], header=True, encoding='utf-8', float_format='%.3f',
                           columns=["name", "category", "price", "quantity", "sum"])
