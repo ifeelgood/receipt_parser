@@ -57,9 +57,10 @@ def parse_receipt(qr_code, config):
     new_items['price'] = new_items['price'] // 100
     new_items['sum'] = new_items['sum'] // 100
     new_items['date'] = datetime.strftime(qr_code['dtm'], config["OUTPUT"]["date_format"])
+    new_items['month'] = datetime.strftime(qr_code['dtm'], config["OUTPUT"]["month_format"])
     new_items['receipt_sum'] = int(qr_code['sum']) // 100
     new_items['category'] = ''
-    new_items.set_index(['date', 'receipt_sum'], inplace=True)
+    new_items.set_index(['month', 'date', 'receipt_sum'], inplace=True)
     return new_items
 
 
@@ -70,15 +71,20 @@ if __name__ == '__main__':
     existing_items_index = None
 
     if os.path.exists(config["OUTPUT"]["filename"]):
-        existing_items = pd.read_csv(config["OUTPUT"]["filename"], encoding='utf-8', index_col=['date', 'receipt_sum'])
+        existing_items = pd.read_csv(config["OUTPUT"]["filename"], encoding='utf-8', index_col=['month', 'date', 'receipt_sum'])
         parsed_data_frames.append(existing_items)
         existing_items_index = existing_items.sort_index().index
 
     for qr_code in fileinput.input():
         qr_code_parsed = parse_qr_code(qr_code)
         dtm = datetime.strftime(qr_code_parsed['dtm'], config["OUTPUT"]["date_format"])
+        if dtm.isdigit():
+            dtm = int(dtm)
+        m = datetime.strftime(qr_code_parsed['dtm'], config["OUTPUT"]["month_format"])
+        if m.isdigit():
+            m = int(m)
         sum = int(qr_code_parsed['sum']) // 100
-        if (existing_items_index is None) or (not (dtm, sum) in existing_items_index):
+        if (existing_items_index is None) or (not (m, dtm, sum) in existing_items_index):
             parsed_items = parse_receipt(qr_code_parsed, config)
             if not isinstance(parsed_items, Iterable):
                 while not isinstance(parsed_items, Iterable) and parsed_items == 202:
