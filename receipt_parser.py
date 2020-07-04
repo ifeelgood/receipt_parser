@@ -1,3 +1,4 @@
+# coding=utf-8
 import configparser
 import requests
 import urlparse
@@ -28,7 +29,7 @@ def parse_qr_code(qr_code_string):
             }
 
 
-def parse_receipt(qr_code, config):
+def parse_receipt(qr_code, config, category_dict):
     dtm_str = datetime.strftime(qr_code['dtm'], "%Y-%m-%dT%H:%M:00")
 
     headers = {'Device-Id' : '', 'Device-OS' : ''}
@@ -59,21 +60,37 @@ def parse_receipt(qr_code, config):
     new_items['date'] = datetime.strftime(qr_code['dtm'], config["OUTPUT"]["date_format"])
     new_items['month'] = datetime.strftime(qr_code['dtm'], config["OUTPUT"]["month_format"])
     new_items['receipt_sum'] = int(qr_code['sum']) // 100
-    new_items['category'] = ''
+    new_items['category'] = new_items['name'].map(category_dict)
     new_items.set_index(['month', 'date', 'receipt_sum'], inplace=True)
     return new_items
 
+def set_category(items_df, category_dict):
+    for item in items_df:
+        if pd.isna(item.category):
+            item.category = category_dict.get(item.name)
+    return items_df
 
 if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read("settings.ini")
     parsed_data_frames = list()
+    category_dict = {}
     existing_items_index = None
 
     if os.path.exists(config["OUTPUT"]["filename"]):
         existing_items = pd.read_csv(config["OUTPUT"]["filename"], encoding='utf-8', index_col=['month', 'date', 'receipt_sum'])
         parsed_data_frames.append(existing_items)
         existing_items_index = existing_items.sort_index().index
+
+        for existing_item in existing_items.itertuples():
+            if not pd.isna(existing_item.category):
+                dict_category = category_dict.get(existing_item.name)
+                if dict_category is not None and dict_category != existing_item.category:
+                      print (u'Ошибка: Для "%s" найдено две категории: "%s" и "%s". Будет использована категория "%s"'
+                             % (existing_item.name, existing_item.category, dict_category, existing_item.category))
+                category_dict[existing_item.name] = existing_item.category
+
+        existing_items['category'] = existing_items['name'].map(category_dict)
 
     for qr_code in fileinput.input():
         qr_code_parsed = parse_qr_code(qr_code)
@@ -85,7 +102,7 @@ if __name__ == '__main__':
             m = int(m)
         sum = int(qr_code_parsed['sum']) // 100
         if (existing_items_index is None) or (not (m, dtm, sum) in existing_items_index):
-            parsed_items = parse_receipt(qr_code_parsed, config)
+            parsed_items = parse_receipt(qr_code_parsed, config, category_dict)
             if not isinstance(parsed_items, Iterable):
                 while not isinstance(parsed_items, Iterable) and parsed_items == 202:
                     time.sleep(float(config["FNS"]["api_call_delay_in_seconds"]))
