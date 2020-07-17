@@ -106,7 +106,7 @@ if __name__ == '__main__':
             if not isinstance(parsed_items, Iterable):
                 while not isinstance(parsed_items, Iterable) and parsed_items == 202:
                     time.sleep(float(config["FNS"]["api_call_delay_in_seconds"]))
-                    parsed_items = parse_receipt(qr_code_parsed, config)
+                    parsed_items = parse_receipt(qr_code_parsed, config, category_dict)
             if isinstance(parsed_items, Iterable):
                 parsed_data_frames.append(parsed_items)
             time.sleep(float(config["FNS"]["api_call_delay_in_seconds"]))
