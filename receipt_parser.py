@@ -28,6 +28,10 @@ def parse_qr_code(qr_code_string):
             'dtm': dtm
             }
 
+def check_authorization(status_code):
+    if status_code == 403:
+        print("Unauthorized")
+        exit(-1)
 
 def parse_receipt(qr_code, config, category_dict):
     dtm_str = datetime.strftime(qr_code['dtm'], "%Y-%m-%dT%H:%M:00")
@@ -38,6 +42,7 @@ def parse_receipt(qr_code, config, category_dict):
         'https://proverkacheka.nalog.ru:9999/v1/ofds/*/inns/*/fss/'+qr_code['fn']+'/operations/1/tickets/'+qr_code['fd'],
         params=payload, headers=headers, auth=(config["FNS"]["phone_number"], config["FNS"]["password"]))
 
+    check_authorization(check.status_code)
     if check.status_code != 204:
         print("Receipt was not found [%d]: FN = %s, FD = %s, FPD = %s, date = %s, sum = %s"
               % (check.status_code, qr_code['fn'], qr_code['fd'], qr_code['fpd'], dtm_str, qr_code['sum']))
@@ -50,6 +55,8 @@ def parse_receipt(qr_code, config, category_dict):
 
     print("Receipt load completed [%d]: FN = %s, FD = %s, FPD = %s, date = %s, sum = %s" % (
         receipt_details.status_code, qr_code['fn'], qr_code['fd'], qr_code['fpd'], dtm_str, qr_code['sum']))
+
+    check_authorization(receipt_details.status_code)
     if receipt_details.status_code != 200:
         return receipt_details.status_code
 
