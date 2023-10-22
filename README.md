@@ -5,13 +5,6 @@
 **Please note that README is in Russian because this program only makes sense for people who leave in Russia, 
 the output of reciept details from Federal Tax Service API used is fully in Russian as well.**
 
-## Установка
-TDB
-
-## Примеры
-TBD
-
-
 ## Как сделать свой вклад?
 Pull запросы приветствуются. Перед крупными изменениями откройте Issue, чтобы обсудить необходимые детали.
 
